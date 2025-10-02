@@ -370,6 +370,8 @@ input[readonly] { opacity: .85; }
 .steps-line { position: absolute; left: 24px; right: 24px; height: 6px; background: #e6f3f7; border-radius: 999px; top: 25px; }
 .steps-progress { position: absolute; left: 24px; width: calc(33% - 24px); height: 6px; background: #7fbcd4; top: 25px; border-radius: 999px; }
 .stepper-2 .steps-progress { width: calc(66% - 24px); background: #5aa8b8; }
+/* For step 3, extend progress exactly to the last bubble, not beyond */
+.stepper-3 .steps-progress { left: 24px; right: 24px; width: auto; background: #5aa8b8; }
 .step { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; background: #dbeff5; color: #87b9c6; display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
 .step.active { background: #bfe7f2; color: #5aa8b8; }
 
@@ -397,9 +399,40 @@ input[readonly] { opacity: .85; }
 
 @media (max-width: 380px) {
   .submit-steps .steps-line, .submit-steps .steps-progress { left: 16px; right: 16px; }
+  .stepper-3 .steps-progress { left: 16px; right: 16px; width: auto; }
   .submit-page .container { padding: 12px; }
 }
 .context-tile .ctx-label { font-weight: 600; }
 .context-grid.invalid { border: 1px solid #ef4444; border-radius: 12px; padding: 8px; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
 
 .cta-row { display: grid; gap: 10px; grid-template-columns: 1fr; }
+
+/* --- Step 3 category compact select --- */
+.cat-select-wrap { position: relative; }
+.cat-emoji-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: 20px;
+}
+.cat-select {
+  text-align-last: center; /* center the caret */
+  color: transparent;      /* hide text in collapsed state */
+  padding-left: 0; padding-right: 0; /* tighter */
+}
+.cat-select:focus { color: transparent; }
+/* ensure options text remains visible in the dropdown */
+.cat-select option { color: #0f172a; }
+
+/* --- Google Places dropdown full-card width on submit pages --- */
+.submit-page .pac-container {
+  width: min(560px, calc(100vw - 32px)) !important; /* card width or viewport minus container padding */
+  left: 50% !important;              /* center under the card */
+  transform: translateX(-50%);       /* center alignment */
+  z-index: 10000;                    /* above other UI */
+  border-radius: 12px;
+  overflow: hidden;
+}

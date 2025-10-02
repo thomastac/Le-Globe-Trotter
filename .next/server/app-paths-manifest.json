@@ -1,7 +1,4 @@
 {
   "/page": "app/page.js",
-  "/submit/page": "app/submit/page.js",
-  "/map/page": "app/map/page.js",
-  "/submit/step2/page": "app/submit/step2/page.js",
-  "/api/submissions/route": "app/api/submissions/route.js"
+  "/submit/page": "app/submit/page.js"
 }

@@ -51,13 +51,20 @@ export async function GET(req: Request) {
 //   travel_context_other?: string | null,
 //   stage1?: string,
 //   stage2?: string,
-//   stage3?: string
+//   stage3?: string,
+//   tip1?: string,
+//   tip2?: string,
+//   tip3?: string,
+//   tip1_category?: string,
+//   tip2_category?: string,
+//   tip3_category?: string
 // }
 export async function PATCH(req: Request) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await req.json();
     const { id, travel_duration, travel_year, travel_context, travel_context_other, stage1, stage2, stage3,
+      tip1, tip2, tip3, tip1_category, tip2_category, tip3_category,
       display_name, phone, city, country, latitude, longitude, address_line, anecdote_text, photo_url, consent_publication } = body ?? {};
 
     if (id == null) {
@@ -73,6 +80,13 @@ export async function PATCH(req: Request) {
     if (typeof stage1 !== 'undefined') payload.stage1 = stage1;
     if (typeof stage2 !== 'undefined') payload.stage2 = stage2;
     if (typeof stage3 !== 'undefined') payload.stage3 = stage3;
+    // Step 3 fields (tips + categories)
+    if (typeof tip1 !== 'undefined') payload.tip1 = tip1;
+    if (typeof tip2 !== 'undefined') payload.tip2 = tip2;
+    if (typeof tip3 !== 'undefined') payload.tip3 = tip3;
+    if (typeof tip1_category !== 'undefined') payload.tip1_category = tip1_category;
+    if (typeof tip2_category !== 'undefined') payload.tip2_category = tip2_category;
+    if (typeof tip3_category !== 'undefined') payload.tip3_category = tip3_category;
     // Step 1 fields
     if (typeof display_name !== 'undefined') payload.display_name = display_name;
     if (typeof phone !== 'undefined') payload.phone = phone;

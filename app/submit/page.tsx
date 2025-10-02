@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import logo from '../../img/logo.png';
 
-export default function SubmitPage() {
+function SubmitPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const submissionId = params.get('id');
@@ -560,6 +562,14 @@ export default function SubmitPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function SubmitPage() {
+  return (
+    <Suspense fallback={null}>
+      <SubmitPageInner />
+    </Suspense>
   );
 }
 
