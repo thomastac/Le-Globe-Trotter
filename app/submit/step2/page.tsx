@@ -13,7 +13,10 @@ import iconRoadtrip from '../../../img/emojis/Roadtrip.png';
 import iconVolontariat from '../../../img/emojis/volontariat.png';
 import iconSpiritualite from '../../../img/emojis/spiritualité.png';
 import iconPro from '../../../img/emojis/professionnel.png';
-import { Suspense as ReactSuspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense as ReactSuspense, useEffect, useMemo, useState } from 'react';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
+
+const REGIONS_TYPE = ['(regions)'];
 
 function SubmitStep2Inner() {
   const router = useRouter();
@@ -40,77 +43,12 @@ function SubmitStep2Inner() {
   const [stage1, setStage1] = useState('');
   const [stage2, setStage2] = useState('');
   const [stage3, setStage3] = useState('');
-  const stage1Ref = useRef<HTMLInputElement | null>(null);
-  const stage2Ref = useRef<HTMLInputElement | null>(null);
-  const stage3Ref = useRef<HTMLInputElement | null>(null);
+  // Refs removed as they are handled inside AddressAutocomplete
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  // Load Google Maps JS with Places library (only on client)
-  useEffect(() => {
-    if (!apiKey || typeof window === 'undefined') return;
+  // Google Maps loading is now handled by AddressAutocomplete components individually
 
-    function ensurePlacesLoaded(): Promise<typeof google> {
-      return new Promise((resolve, reject) => {
-        // If google + places already available
-        if (typeof window.google !== 'undefined' && (window as any).google?.maps?.places) {
-          return resolve((window as any).google);
-        }
-        // If a script already exists, attach listeners
-        const existing = document.getElementById('google-maps-sdk');
-        if (existing) {
-          existing.addEventListener('load', () => resolve((window as any).google));
-          existing.addEventListener('error', () => reject(new Error('Failed to load Google Maps script')));
-          return;
-        }
-        // Inject a script including the places library
-        const script = document.createElement('script');
-        script.id = 'google-maps-sdk';
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-        script.async = true;
-        script.defer = true;
-        script.onload = () => resolve((window as any).google);
-        script.onerror = () => reject(new Error('Failed to load Google Maps script'));
-        document.head.appendChild(script);
-      });
-    }
-
-    let cancelled = false;
-    ensurePlacesLoaded()
-      .then((g) => {
-        if (cancelled) return;
-        const opts: google.maps.places.AutocompleteOptions = {
-          // Bias towards cities/places, but allow general places too
-          // types: ['(cities)'], // Uncomment to restrict to cities only
-        };
-
-        const setup = (
-          input: HTMLInputElement | null,
-          setValue: (v: string) => void
-        ) => {
-          if (!input) return;
-          const ac = new g.maps.places.Autocomplete(input, opts);
-          ac.addListener('place_changed', () => {
-            const place = ac.getPlace();
-            const val = place?.formatted_address || place?.name || input.value;
-            // Update both the DOM input and React state (controlled input)
-            input.value = val || '';
-            setValue(val || '');
-          });
-        };
-
-        setup(stage1Ref.current, setStage1);
-        setup(stage2Ref.current, setStage2);
-        setup(stage3Ref.current, setStage3);
-      })
-      .catch((e) => {
-        console.error(e);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiKey]);
 
   // Prefill from Supabase when returning with an id, and restore from localStorage
   useEffect(() => {
@@ -164,7 +102,7 @@ function SubmitStep2Inner() {
       stage2,
       stage3,
     };
-    try { localStorage.setItem(draftKey, JSON.stringify(payload)); } catch {}
+    try { localStorage.setItem(draftKey, JSON.stringify(payload)); } catch { }
   }, [submissionId, duration, year, selectedContext, otherContext, stage1, stage2, stage3]);
 
   const CONTEXT_ITEMS = [
@@ -224,7 +162,7 @@ function SubmitStep2Inner() {
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || 'Update failed');
         // Clear local draft after successful save
-        try { if (submissionId) localStorage.removeItem(`submit_step2_${submissionId}`); } catch {}
+        try { if (submissionId) localStorage.removeItem(`submit_step2_${submissionId}`); } catch { }
         const search = new URLSearchParams();
         if (submissionId) search.set('id', String(submissionId));
         router.push(`/submit/step3${search.toString() ? `?${search.toString()}` : ''}`);
@@ -257,13 +195,13 @@ function SubmitStep2Inner() {
               <div className="steps-line" />
               <div className="steps-progress" />
               <div className="step" aria-label="Recherche">
-                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M10 18a8 8 0 1 1 5.293-14.293A8 8 0 0 1 10 18Zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm11 3.586-5.121-5.12 1.414-1.415 5.12 5.121L21 19.586Z"/></svg>
+                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M10 18a8 8 0 1 1 5.293-14.293A8 8 0 0 1 10 18Zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm11 3.586-5.121-5.12 1.414-1.415 5.12 5.121L21 19.586Z" /></svg>
               </div>
               <div className="step active" aria-label="Voyage">
-                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9L2 14v2l8-2.5V19l-2 1.5V22l3-1 3 1v-1.5L13 19v-5.5l8 2.5Z"/></svg>
+                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9L2 14v2l8-2.5V19l-2 1.5V22l3-1 3 1v-1.5L13 19v-5.5l8 2.5Z" /></svg>
               </div>
               <div className="step" aria-label="Livre">
-                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M6 2h11a3 3 0 0 1 3 3v15.5a1.5 1.5 0 0 1-2.25 1.304L14 19H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm0 2v13h8.5l3.5 1.944V5a1 1 0 0 0-1-1H6Z"/></svg>
+                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M6 2h11a3 3 0 0 1 3 3v15.5a1.5 1.5 0 0 1-2.25 1.304L14 19H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm0 2v13h8.5l3.5 1.944V5a1 1 0 0 0-1-1H6Z" /></svg>
               </div>
             </div>
           </header>
@@ -327,9 +265,30 @@ function SubmitStep2Inner() {
             </div>
 
             <p className="submit-subtitle" style={{ textAlign: 'left' }}>Donne nous les trois étapes clés de ton voyage ?</p>
-            <input ref={stage1Ref} className={`pill-input white-border ${errors.stage1 ? 'invalid' : ''}`} placeholder="Étape 1*" value={stage1} onChange={(e) => setStage1(e.target.value)} />
-            <input ref={stage2Ref} className="pill-input white-border" placeholder="Étape 2" value={stage2} onChange={(e) => setStage2(e.target.value)} />
-            <input ref={stage3Ref} className="pill-input white-border" placeholder="Étape 3" value={stage3} onChange={(e) => setStage3(e.target.value)} />
+            <AddressAutocomplete
+              apiKey={apiKey}
+              className={`pill-input white-border ${errors.stage1 ? 'invalid' : ''}`}
+              placeholder="Étape 1*"
+              value={stage1}
+              onChange={setStage1}
+              types={REGIONS_TYPE}
+            />
+            <AddressAutocomplete
+              apiKey={apiKey}
+              className="pill-input white-border"
+              placeholder="Étape 2"
+              value={stage2}
+              onChange={setStage2}
+              types={REGIONS_TYPE}
+            />
+            <AddressAutocomplete
+              apiKey={apiKey}
+              className="pill-input white-border"
+              placeholder="Étape 3"
+              value={stage3}
+              onChange={setStage3}
+              types={REGIONS_TYPE}
+            />
 
             {summaryError && <p className="submit-error" style={{ textAlign: 'center' }}>{summaryError}</p>}
             <div className="cta-row">
@@ -345,7 +304,7 @@ function SubmitStep2Inner() {
                   >
                     <span className="checkin-inner">
                       <svg className="plane" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9L2 14v2l8-2.5V19l-2 1.5V22l3-1 3 1v-1.5L13 19v-5.5l8 2.5Z"/>
+                        <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9L2 14v2l8-2.5V19l-2 1.5V22l3-1 3 1v-1.5L13 19v-5.5l8 2.5Z" />
                       </svg>
                       Décollage
                     </span>
@@ -354,7 +313,7 @@ function SubmitStep2Inner() {
               })()}
               <button type="button" className="checkin-btn checkin-btn--danger" onClick={handleNext}>
                 <span className="checkin-inner">
-                  <svg className="icon-left" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 19 3 12l7-7v4h8v6h-8v4Z"/></svg>
+                  <svg className="icon-left" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 19 3 12l7-7v4h8v6h-8v4Z" /></svg>
                   Check out
                 </span>
               </button>

@@ -6,7 +6,6 @@ import { PDFDocument, StandardFonts, rgb, pushGraphicsState, popGraphicsState, m
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
 const W = 794;
 const H = 1123;
 const PAGE_W = W;
@@ -17,6 +16,8 @@ function toPdfXYTopLeft(xTL: number, yTL: number, h: number = 0) {
   const y = PAGE_H - yTL - h;
   return { x, y };
 }
+
+// (revert) remove center helper; use top-left drawing everywhere
 
 function wrapText(text: string, font: any, size: number, maxWidth: number, maxLines?: number) {
   const words = (text ?? '').split(/\s+/).filter(Boolean);
@@ -151,19 +152,19 @@ export async function GET(req: Request) {
     const meta = [city, [duration, year].filter(Boolean).join(' / ')].filter(Boolean).join(' · ');
     if (meta) drawTextTopLeft(page, meta, 300, 152, { font, size: 12, color: rgb(0x22/255,0x22/255,0x22/255), maxWidth: 380 });
 
-    // Steps (2 lines) - updated coordinates
+    // Steps (2 lines) - original coordinates
     if (stage1) drawTextTopLeft(page, stage1, 123, 403, { font, size: 12, color: rgb(0x22/255,0x22/255,0x22/255), maxWidth: 180, lineHeight: 15, maxLines: 2 });
     if (stage2) drawTextTopLeft(page, stage2, 324, 355, { font, size: 12, color: rgb(0x22/255,0x22/255,0x22/255), maxWidth: 200, lineHeight: 15, maxLines: 2 });
     if (stage3) drawTextTopLeft(page, stage3, 581, 294, { font, size: 12, color: rgb(0x22/255,0x22/255,0x22/255), maxWidth: 180, lineHeight: 15, maxLines: 2 });
 
-    // Tips (3 lines) - updated coordinates
+    // Tips (3 lines) - original coordinates
     if (tip1) drawTextTopLeft(page, tip1, 372, 617, { font, size: 13, color: rgb(0x22/255,0x22/255,0x22/255), maxWidth: 220, lineHeight: 16, maxLines: 3 });
     if (tip2) drawTextTopLeft(page, tip2, 542, 698, { font, size: 13, color: rgb(0x22/255,0x22/255,0x22/255), maxWidth: 220, lineHeight: 16, maxLines: 3 });
     if (tip3) drawTextTopLeft(page, tip3, 680, 558, { font, size: 13, color: rgb(0x22/255,0x22/255,0x22/255), maxWidth: 220, lineHeight: 16, maxLines: 3 });
 
-    // Story (clamped by lines) - updated center alignment
+    // Story (clamped by lines) - original alignment
     const storyMaxLines = Math.floor(210 / 15);
-    const storyLeft = 433 - Math.floor(574 / 2); // centerX - w/2 = 146
+    const storyLeft = 433 - Math.floor(574 / 2);
     if (anecdote) drawTextTopLeft(page, anecdote, storyLeft, 900, { font, size: 12, color: rgb(0x22/255,0x22/255,0x22/255), maxWidth: 574, lineHeight: 15, maxLines: storyMaxLines });
 
     // Debug: show converted coords

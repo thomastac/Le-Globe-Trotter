@@ -1,0 +1,1 @@
+{"kind":"FETCH","data":{"headers":{"cache-control":"public, immutable, max-age=31556926","connection":"keep-alive","content-length":"15","content-type":"application/json","date":"Thu, 02 Oct 2025 07:51:26 GMT","server":"nginx/1.22.1"},"body":"W3siY2NhMiI6IkJEIn1d","status":200,"url":"https://restcountries.com/v3.1/name/Bangladesh?fields=cca2"},"revalidate":31536000,"tags":[]}

@@ -1,4 +1,4 @@
-// File: C:\Users\admin\Documents\Voyage d'etude\GlobTrotter\GlobeTrotter\app\page.tsx
+// File: C:\Users\toto\Downloads\GlobeTrotter\app\page.tsx
 import * as entry from '../../../app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

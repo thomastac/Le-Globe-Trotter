@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import logo from '../../../img/logo.png';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 
 const CATEGORIES = [
   { key: 'food', label: 'Restaurants & Street Food', emoji: '🍴' },
@@ -19,7 +20,10 @@ const CATEGORIES = [
   { key: 'other', label: 'Autre', emoji: '➕' },
 ];
 
-export default function SubmitStep3Page() {
+// Allow all types for "Bon plans" (restaurants, museums, etc.)
+const TIPS_TYPES: string[] = [];
+
+function SubmitStep3Inner() {
   const router = useRouter();
   const params = useSearchParams();
   const submissionId = params.get('id');
@@ -40,64 +44,7 @@ export default function SubmitStep3Page() {
   const [anecdote, setAnecdote] = useState('');
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [summaryError, setSummaryError] = useState<string | null>(null);
-
-  const tip1Ref = useRef<HTMLInputElement | null>(null);
-  const tip2Ref = useRef<HTMLInputElement | null>(null);
-  const tip3Ref = useRef<HTMLInputElement | null>(null);
-
-  // Load Google Maps Places and attach Autocomplete to tips
-  useEffect(() => {
-    if (!apiKey || typeof window === 'undefined') return;
-
-    function ensurePlacesLoaded(): Promise<typeof google> {
-      return new Promise((resolve, reject) => {
-        if (typeof window.google !== 'undefined' && (window as any).google?.maps?.places) {
-          return resolve((window as any).google);
-        }
-        const existing = document.getElementById('google-maps-sdk');
-        if (existing) {
-          existing.addEventListener('load', () => resolve((window as any).google));
-          existing.addEventListener('error', () => reject(new Error('Failed to load Google Maps script')));
-          return;
-        }
-        const script = document.createElement('script');
-        script.id = 'google-maps-sdk';
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-        script.async = true;
-        script.defer = true;
-        script.onload = () => resolve((window as any).google);
-        script.onerror = () => reject(new Error('Failed to load Google Maps script'));
-        document.head.appendChild(script);
-      });
-    }
-
-    let cancelled = false;
-    ensurePlacesLoaded()
-      .then((g) => {
-        if (cancelled) return;
-        const opts: google.maps.places.AutocompleteOptions = {};
-
-        const setup = (input: HTMLInputElement | null, setValue: (v: string) => void) => {
-          if (!input) return;
-          const ac = new g.maps.places.Autocomplete(input, opts);
-          ac.addListener('place_changed', () => {
-            const place = ac.getPlace();
-            const val = place?.formatted_address || place?.name || input.value;
-            input.value = val || '';
-            setValue(val || '');
-          });
-        };
-
-        setup(tip1Ref.current, setTip1);
-        setup(tip2Ref.current, setTip2);
-        setup(tip3Ref.current, setTip3);
-      })
-      .catch((e) => console.error(e));
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiKey]);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // Prefill from Supabase and restore from localStorage
   useEffect(() => {
@@ -151,7 +98,7 @@ export default function SubmitStep3Page() {
       cat1Other, cat2Other, cat3Other,
       anecdote,
     };
-    try { localStorage.setItem(draftKey, JSON.stringify(payload)); } catch {}
+    try { localStorage.setItem(draftKey, JSON.stringify(payload)); } catch { }
   }, [submissionId, tip1, tip2, tip3, cat1, cat2, cat3, cat1Other, cat2Other, cat3Other, anecdote]);
 
   function handlePublish() {
@@ -166,10 +113,12 @@ export default function SubmitStep3Page() {
       return;
     }
     setSummaryError(null);
+    setIsPublishing(true);
 
     (async () => {
       if (!submissionId) {
         setSummaryError("Identifiant de soumission manquant. Reviens en arrière et relance 'check in'.");
+        setIsPublishing(false);
         return;
       }
       try {
@@ -189,13 +138,15 @@ export default function SubmitStep3Page() {
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || 'Update failed');
+
         // Clear draft after successful publish
-        try { if (submissionId) localStorage.removeItem(`submit_step3_${submissionId}`); } catch {}
-        // Open PDF in a new tab
-        try { if (submissionId) window.open(`/api/pdf?id=${encodeURIComponent(String(submissionId))}`, '_blank', 'noopener'); } catch {}
+        try { if (submissionId) localStorage.removeItem(`submit_step3_${submissionId}`); } catch { }
+
+        // Redirect to map
         router.push('/map');
       } catch (e: any) {
         setSummaryError(e?.message || 'Échec de sauvegarde. Réessaie.');
+        setIsPublishing(false);
       }
     })();
   }
@@ -209,105 +160,130 @@ export default function SubmitStep3Page() {
   const ready = Boolean(tip1.trim() && (cat1 === 'other' ? cat1Other.trim() : cat1));
 
   return (
-    <Suspense fallback={null}>
     <main className="submit-page">
       <section className="container" style={{ maxWidth: 820 }}>
-        <div className="card">
+        <div className="card paper-texture" style={{ border: 'none' }}>
           <header className="submit-header">
-            <h1 className="submit-title">Mon anecdote Globetrotter</h1>
-            <p className="submit-subtitle">Partage ton voyage avec nous</p>
-            <div className="submit-banner">
-              <Image src={logo} alt="GlobeTrotter" className="submit-banner-logo" width={48} height={48} priority />
-              <div className="submit-banner-text">Seul, en groupe ou pour le travail dans tous les voyages il y a de l'aventure !</div>
-            </div>
-            <p className="submit-hint">Les champs précédés d'une "*" sont obligatoires</p>
-            <div className="submit-steps stepper-3">
+            <h1 className="submit-title font-hand" style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>Le Livre d'Or</h1>
+            <p className="submit-subtitle font-hand" style={{ fontSize: '1.5rem' }}>Raconte-nous ton histoire...</p>
+
+            <div className="submit-steps stepper-3" style={{ marginTop: '1rem', marginBottom: '2rem' }}>
               <div className="steps-line" />
               <div className="steps-progress" />
               <div className="step" aria-label="Recherche">
-                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M10 18a8 8 0 1 1 5.293-14.293A8 8 0 0 1 10 18Zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm11 3.586-5.121-5.12 1.414-1.415 5.12 5.121L21 19.586Z"/></svg>
+                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M10 18a8 8 0 1 1 5.293-14.293A8 8 0 0 1 10 18Zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm11 3.586-5.121-5.12 1.414-1.415 5.12 5.121L21 19.586Z" /></svg>
               </div>
               <div className="step" aria-label="Voyage">
-                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9L2 14v2l8-2.5V19l-2 1.5V22l3-1 3 1v-1.5L13 19v-5.5l8 2.5Z"/></svg>
+                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9L2 14v2l8-2.5V19l-2 1.5V22l3-1 3 1v-1.5L13 19v-5.5l8 2.5Z" /></svg>
               </div>
               <div className="step active" aria-label="Livre">
-                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M6 2h11a3 3 0 0 1 3 3v15.5a1.5 1.5 0 0 1-2.25 1.304L14 19H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm0 2v13h8.5l3.5 1.944V5a1 1 0 0 0-1-1H6Z"/></svg>
+                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M6 2h11a3 3 0 0 1 3 3v15.5a1.5 1.5 0 0 1-2.25 1.304L14 19H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm0 2v13h8.5l3.5 1.944V5a1 1 0 0 0-1-1H6Z" /></svg>
               </div>
             </div>
           </header>
 
-          <div className="submit-form">
-            <p className="submit-subtitle" style={{ textAlign: 'left' }}>Donne tes trois meilleurs lieux</p>
+          <div className="submit-form" style={{ padding: '0 24px 24px' }}>
 
-            {/* Tip 1 */}
-            <div className={`tip-row ${errors.tip1 ? 'invalid' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px', gap: 12 }}>
-              <input ref={tip1Ref} className={`pill-input white-border ${errors.tip1 ? 'invalid' : ''}`} placeholder="Bon plan 1*" value={tip1} onChange={(e) => setTip1(e.target.value)} />
-              <div className="cat-select-wrap">
-                <span className="cat-emoji-preview" aria-hidden>{(CATEGORIES.find(c=>c.key===cat1)?.emoji) || '🏷️'}</span>
-                <select className={`pill-input white-border cat-select ${errors.cat1 ? 'invalid' : ''}`} value={cat1} onChange={(e) => setCat1(e.target.value)} title={cat1 ? (CATEGORIES.find(c=>c.key===cat1)?.label || '') : ''}>
-                  <option value="" disabled>Catégorie*</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c.key} value={c.key}>{`${c.emoji} ${c.label}`}</option>
-                  ))}
-                </select>
+            <div className="stack" style={{ gap: '24px' }}>
+              <div>
+                <label className="notebook-label">Tes 3 coups de cœur ❤️</label>
+
+                {/* Tip 1 */}
+                <div className={`tip-row ${errors.tip1 ? 'invalid' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px', gap: 12, marginBottom: 12 }}>
+                  <AddressAutocomplete
+                    apiKey={apiKey}
+                    className={`notebook-input ${errors.tip1 ? 'invalid' : ''}`}
+                    placeholder="Lieu incontournable 1*"
+                    value={tip1}
+                    onChange={setTip1}
+                    types={TIPS_TYPES}
+                  />
+                  <div className="cat-select-wrap">
+                    <span className="cat-emoji-preview" aria-hidden>{(CATEGORIES.find(c => c.key === cat1)?.emoji) || '🏷️'}</span>
+                    <select className={`pill-input white-border cat-select ${errors.cat1 ? 'invalid' : ''}`} value={cat1} onChange={(e) => setCat1(e.target.value)} title={cat1 ? (CATEGORIES.find(c => c.key === cat1)?.label || '') : ''}>
+                      <option value="" disabled>Catégorie*</option>
+                      {CATEGORIES.map((c) => (
+                        <option key={c.key} value={c.key}>{`${c.emoji} ${c.label}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 {cat1 === 'other' && (
-                  <input className="pill-input white-border" placeholder="Précise la catégorie" value={cat1Other} onChange={(e) => setCat1Other(e.target.value)} style={{ marginTop: 8 }} />
+                  <input className="notebook-input" placeholder="Précise..." value={cat1Other} onChange={(e) => setCat1Other(e.target.value)} />
                 )}
-              </div>
-            </div>
 
-            {/* Tip 2 */}
-            <div className="tip-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px', gap: 12 }}>
-              <input ref={tip2Ref} className="pill-input white-border" placeholder="Bon plan 2" value={tip2} onChange={(e) => setTip2(e.target.value)} />
-              <div className="cat-select-wrap">
-                <span className="cat-emoji-preview" aria-hidden>{(CATEGORIES.find(c=>c.key===cat2)?.emoji) || '🏷️'}</span>
-                <select className="pill-input white-border cat-select" value={cat2} onChange={(e) => setCat2(e.target.value)} title={cat2 ? (CATEGORIES.find(c=>c.key===cat2)?.label || '') : ''}>
-                  <option value="">Catégorie</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c.key} value={c.key}>{`${c.emoji} ${c.label}`}</option>
-                  ))}
-                </select>
+                {/* Tip 2 */}
+                <div className="tip-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px', gap: 12, marginBottom: 12 }}>
+                  <AddressAutocomplete
+                    apiKey={apiKey}
+                    className="notebook-input"
+                    placeholder="Lieu incontournable 2"
+                    value={tip2}
+                    onChange={setTip2}
+                    types={TIPS_TYPES}
+                  />
+                  <div className="cat-select-wrap">
+                    <span className="cat-emoji-preview" aria-hidden>{(CATEGORIES.find(c => c.key === cat2)?.emoji) || '🏷️'}</span>
+                    <select className="pill-input white-border cat-select" value={cat2} onChange={(e) => setCat2(e.target.value)} title={cat2 ? (CATEGORIES.find(c => c.key === cat2)?.label || '') : ''}>
+                      <option value="">Catégorie</option>
+                      {CATEGORIES.map((c) => (
+                        <option key={c.key} value={c.key}>{`${c.emoji} ${c.label}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 {cat2 === 'other' && (
-                  <input className="pill-input white-border" placeholder="Précise la catégorie" value={cat2Other} onChange={(e) => setCat2Other(e.target.value)} style={{ marginTop: 8 }} />
+                  <input className="notebook-input" placeholder="Précise..." value={cat2Other} onChange={(e) => setCat2Other(e.target.value)} />
                 )}
-              </div>
-            </div>
 
-            {/* Tip 3 */}
-            <div className="tip-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px', gap: 12 }}>
-              <input ref={tip3Ref} className="pill-input white-border" placeholder="Bon plan 3" value={tip3} onChange={(e) => setTip3(e.target.value)} />
-              <div className="cat-select-wrap">
-                <span className="cat-emoji-preview" aria-hidden>{(CATEGORIES.find(c=>c.key===cat3)?.emoji) || '🏷️'}</span>
-                <select className="pill-input white-border cat-select" value={cat3} onChange={(e) => setCat3(e.target.value)} title={cat3 ? (CATEGORIES.find(c=>c.key===cat3)?.label || '') : ''}>
-                  <option value="">Catégorie</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c.key} value={c.key}>{`${c.emoji} ${c.label}`}</option>
-                  ))}
-                </select>
+                {/* Tip 3 */}
+                <div className="tip-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px', gap: 12 }}>
+                  <AddressAutocomplete
+                    apiKey={apiKey}
+                    className="notebook-input"
+                    placeholder="Lieu incontournable 3"
+                    value={tip3}
+                    onChange={setTip3}
+                    types={TIPS_TYPES}
+                  />
+                  <div className="cat-select-wrap">
+                    <span className="cat-emoji-preview" aria-hidden>{(CATEGORIES.find(c => c.key === cat3)?.emoji) || '🏷️'}</span>
+                    <select className="pill-input white-border cat-select" value={cat3} onChange={(e) => setCat3(e.target.value)} title={cat3 ? (CATEGORIES.find(c => c.key === cat3)?.label || '') : ''}>
+                      <option value="">Catégorie</option>
+                      {CATEGORIES.map((c) => (
+                        <option key={c.key} value={c.key}>{`${c.emoji} ${c.label}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 {cat3 === 'other' && (
-                  <input className="pill-input white-border" placeholder="Précise la catégorie" value={cat3Other} onChange={(e) => setCat3Other(e.target.value)} style={{ marginTop: 8 }} />
+                  <input className="notebook-input" placeholder="Précise..." value={cat3Other} onChange={(e) => setCat3Other(e.target.value)} />
                 )}
+              </div>
+
+              <div>
+                <label className="notebook-label">Ton anecdote de voyage ✍️</label>
+                <textarea
+                  className="notebook-input"
+                  placeholder="Raconte-nous un moment marquant, une rencontre, ou un imprévu..."
+                  value={anecdote}
+                  onChange={(e) => setAnecdote(e.target.value)}
+                  rows={6}
+                  style={{ width: '100%', resize: 'vertical', minHeight: '150px', lineHeight: '1.5' }}
+                />
               </div>
             </div>
 
-            <label className="label" style={{ marginTop: 16 }}>
-              Raconte-nous tes aventures ou révèle tes bons plans
-              <textarea className="pill-input white-border" placeholder="..." value={anecdote} onChange={(e) => setAnecdote(e.target.value)} rows={5} />
-            </label>
+            {summaryError && <p className="submit-error" style={{ textAlign: 'center', marginTop: '1rem' }}>{summaryError}</p>}
 
-            {summaryError && <p className="submit-error" style={{ textAlign: 'center' }}>{summaryError}</p>}
-            <div className="cta-row">
-              <button type="button" className={`checkin-btn ${ready ? 'ready' : ''}`} onClick={handlePublish}>
+            <div className="cta-row" style={{ marginTop: '2rem' }}>
+              <button type="button" className={`checkin-btn ${ready ? 'ready' : ''}`} onClick={handlePublish} disabled={isPublishing}>
                 <span className="checkin-inner">
-                  <svg className="plane" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9L2 14v2l8-2.5V19l-2 1.5V22l3-1 3 1v-1.5L13 19v-5.5l8 2.5Z"/>
-                  </svg>
-                  Publier mon voyage !
+                  {isPublishing ? 'Publication...' : 'Publier mon carnet !'}
                 </span>
               </button>
-              <button type="button" className="checkin-btn checkin-btn--danger" onClick={handleBack}>
+              <button type="button" className="checkin-btn checkin-btn--danger" onClick={handleBack} disabled={isPublishing}>
                 <span className="checkin-inner">
-                  <svg className="icon-left" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 19 3 12l7-7v4h8v6h-8v4Z"/></svg>
                   Retour
                 </span>
               </button>
@@ -316,6 +292,13 @@ export default function SubmitStep3Page() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function SubmitStep3Page() {
+  return (
+    <Suspense fallback={null}>
+      <SubmitStep3Inner />
     </Suspense>
   );
 }

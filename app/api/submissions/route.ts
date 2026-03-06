@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 // POST /api/submissions
 // Body JSON:
@@ -64,7 +69,7 @@ export async function PATCH(req: Request) {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await req.json();
     const { id, travel_duration, travel_year, travel_context, travel_context_other, stage1, stage2, stage3,
-      tip1, tip2, tip3, tip1_category, tip2_category, tip3_category,
+      tip1, tip2, tip3, tip1_category, tip2_category, tip3_category, bon_plans,
       display_name, phone, city, country, latitude, longitude, address_line, anecdote_text, photo_url, consent_publication } = body ?? {};
 
     if (id == null) {
@@ -98,6 +103,7 @@ export async function PATCH(req: Request) {
     if (typeof anecdote_text !== 'undefined') payload.anecdote_text = anecdote_text;
     if (typeof photo_url !== 'undefined') payload.photo_url = photo_url;
     if (typeof consent_publication !== 'undefined') payload.consent_publication = consent_publication;
+    if (typeof bon_plans !== 'undefined') payload.bon_plans = bon_plans;
 
     if (Object.keys(payload).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
@@ -126,6 +132,14 @@ export async function POST(req: Request) {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await req.json();
 
+    console.log('📝 Received POST request for new submission:', {
+      display_name: body.display_name,
+      city: body.city,
+      country: body.country,
+      has_photo: !!body.photo_url,
+      consent: body.consent_publication
+    });
+
     const {
       display_name,
       phone = null,
@@ -139,40 +153,92 @@ export async function POST(req: Request) {
       consent_publication = true,
     } = body ?? {};
 
-    if (!display_name || typeof latitude !== 'number' || typeof longitude !== 'number') {
+    // Sanitize coordinates: accept missing or invalid values as null.
+    const safeLat = typeof latitude === 'number' && Number.isFinite(latitude) ? latitude : null;
+    const safeLng = typeof longitude === 'number' && Number.isFinite(longitude) ? longitude : null;
+
+    // Only the display name is strictly required at creation time.
+    if (!display_name) {
+      console.error('❌ Missing display_name');
       return NextResponse.json(
-        { error: 'Missing required fields: display_name, latitude, longitude' },
+        { error: 'Missing required field: display_name' },
         { status: 400 }
       );
     }
 
+    const submissionData = {
+      display_name,
+      phone,
+      address_line,
+      city,
+      country,
+      latitude: safeLat,
+      longitude: safeLng,
+      anecdote_text,
+      photo_url,
+      consent_publication,
+    };
+
+    console.log('💾 Inserting submission into database:', submissionData);
+
     const { data, error } = await supabaseAdmin
       .from('submissions')
-      .insert([
-        {
-          display_name,
-          phone,
-          address_line,
-          city,
-          country,
-          latitude,
-          longitude,
-          anecdote_text,
-          photo_url,
-          consent_publication,
-        },
-      ])
+      .insert([submissionData])
       .select('*')
       .single();
 
     if (error) {
-      console.error('Insert error', error);
+      console.error('❌ Insert error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    console.log('✅ Successfully created submission:', data.id);
     return NextResponse.json({ submission: data }, { status: 201 });
   } catch (e: any) {
-    console.error(e);
+    console.error('❌ Unexpected error in POST /api/submissions:', e);
     return NextResponse.json({ error: e?.message ?? 'Unexpected error' }, { status: 500 });
   }
 }
+
+// DELETE /api/submissions?id=<id>
+export async function DELETE(req: Request) {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    }
+
+    // First, check if submission exists
+    const { data: existingSubmission, error: fetchError } = await supabaseAdmin
+      .from('submissions')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingSubmission) {
+      console.error('Submission not found:', id, fetchError);
+      return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+    }
+
+    // Delete the submission
+    const { error } = await supabaseAdmin
+      .from('submissions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Delete error for submission', id, ':', error);
+      return NextResponse.json({ error: error.message, details: error }, { status: 500 });
+    }
+
+    console.log('✅ Successfully deleted submission:', id);
+    return NextResponse.json({ success: true, message: 'Submission deleted successfully' }, { status: 200 });
+  } catch (e: any) {
+    console.error('Unexpected error during deletion:', e);
+    return NextResponse.json({ error: e?.message ?? 'Unexpected error' }, { status: 500 });
+  }
+}
+
