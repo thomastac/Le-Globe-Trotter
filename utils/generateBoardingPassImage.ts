@@ -1,4 +1,3 @@
-import html2canvas from 'html2canvas';
 import { getTemplateConfig } from './templateConfig';
 
 interface Submission {
@@ -129,6 +128,7 @@ export async function generateBoardingPassImage(submission: Submission): Promise
 
   await new Promise((resolve) => setTimeout(resolve, 500));
 
+  const html2canvas = (await import('html2canvas')).default;
   const canvas = await html2canvas(container, {
     scale: 2,
     useCORS: true,
@@ -139,7 +139,7 @@ export async function generateBoardingPassImage(submission: Submission): Promise
   document.body.removeChild(container);
 
   return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
+    canvas.toBlob((blob: Blob | null) => {
       resolve(blob as Blob);
     }, 'image/png', 0.95);
   });

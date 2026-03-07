@@ -1,5 +1,3 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { getTemplateConfig } from './templateConfig';
 
 interface Submission {
@@ -129,6 +127,9 @@ export async function generateBoardingPassPDF(submission: Submission): Promise<v
   `;
 
   await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const html2canvas = (await import('html2canvas')).default;
+  const jsPDF = (await import('jspdf')).default;
 
   const canvas = await html2canvas(container, {
     scale: 2,
