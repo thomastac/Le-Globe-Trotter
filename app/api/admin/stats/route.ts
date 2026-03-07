@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
             id: sub.id,
             submission_number: sub.submission_number,
             display_name: sub.display_name,
+            phone: sub.phone || null,
             country: sub.country || '',
             city: sub.city || '',
             submitted_at: sub.submitted_at,
@@ -71,6 +72,14 @@ export async function GET(request: NextRequest) {
             consent_publication: sub.consent_publication || false,
             photo_url: sub.photo_url || null,
             anecdote_text: sub.anecdote_text || null,
+            bon_plans: sub.bon_plans || [],
+            travel_year: sub.travel_year || null,
+            tip1: sub.tip1 || null,
+            tip1_category: sub.tip1_category || null,
+            tip2: sub.tip2 || null,
+            tip2_category: sub.tip2_category || null,
+            tip3: sub.tip3 || null,
+            tip3_category: sub.tip3_category || null,
         }));
 
         // Get ALL submissions for the draw page
@@ -78,6 +87,7 @@ export async function GET(request: NextRequest) {
             id: sub.id,
             submission_number: sub.submission_number,
             display_name: sub.display_name,
+            phone: sub.phone || null,
             country: sub.country || '',
             city: sub.city || '',
             submitted_at: sub.submitted_at,
@@ -85,6 +95,14 @@ export async function GET(request: NextRequest) {
             consent_publication: sub.consent_publication || false,
             photo_url: sub.photo_url || null,
             anecdote_text: sub.anecdote_text || null,
+            bon_plans: sub.bon_plans || [],
+            travel_year: sub.travel_year || null,
+            tip1: sub.tip1 || null,
+            tip1_category: sub.tip1_category || null,
+            tip2: sub.tip2 || null,
+            tip2_category: sub.tip2_category || null,
+            tip3: sub.tip3 || null,
+            tip3_category: sub.tip3_category || null,
         }));
 
         return NextResponse.json({

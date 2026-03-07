@@ -30,7 +30,18 @@ export async function generateBoardingPassPDF(submission: Submission): Promise<v
 
   const stops = [submission.stage1, submission.stage2, submission.stage3].filter(Boolean);
   
-  const parsedBonPlans = Array.isArray(submission.bon_plans) ? submission.bon_plans : [];
+  let parsedBonPlans: any[] = [];
+  if (Array.isArray(submission.bon_plans)) {
+      parsedBonPlans = submission.bon_plans;
+  } else if (typeof submission.bon_plans === 'string') {
+      try {
+          parsedBonPlans = JSON.parse(submission.bon_plans);
+          if (!Array.isArray(parsedBonPlans)) parsedBonPlans = [];
+      } catch (e) {
+          console.error("Failed to parse bon_plans JSON string", e);
+      }
+  }
+
   const bonPlans = [
     { type: parsedBonPlans[0]?.type || submission.tip1_category, address: parsedBonPlans[0]?.address || submission.tip1 },
     { type: parsedBonPlans[1]?.type || submission.tip2_category, address: parsedBonPlans[1]?.address || submission.tip2 },
