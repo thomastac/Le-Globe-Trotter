@@ -7,3 +7,12 @@
 
 [build.environment]
   NODE_VERSION = "18"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["node_modules/jspdf/**", "node_modules/html2canvas/**", "node_modules/pdfjs-dist/**"]
+  external_node_modules = ["sharp", "jspdf", "html2canvas"]
+
+[functions."___netlify-server-handler"]
+  memory = 1024
+  max_execution_time = 26
