@@ -42,11 +42,17 @@ export async function generateBoardingPassPDF(submission: Submission): Promise<v
       }
   }
 
+  const getAddressText = (bp: any, legacyAddress: any) => {
+    if (bp?.address) return bp.address;
+    if (bp?.latitude && bp?.longitude) return `📍 GPS: ${parseFloat(bp.latitude).toFixed(4)}, ${parseFloat(bp.longitude).toFixed(4)}`;
+    return legacyAddress;
+  };
+
   const bonPlans = [
-    { type: parsedBonPlans[0]?.type || submission.tip1_category, address: parsedBonPlans[0]?.address || submission.tip1 },
-    { type: parsedBonPlans[1]?.type || submission.tip2_category, address: parsedBonPlans[1]?.address || submission.tip2 },
-    { type: parsedBonPlans[2]?.type || submission.tip3_category, address: parsedBonPlans[2]?.address || submission.tip3 }
-  ].filter(bp => bp.address);
+    { type: parsedBonPlans[0]?.type || submission.tip1_category, address: getAddressText(parsedBonPlans[0], submission.tip1), description: parsedBonPlans[0]?.description || "" },
+    { type: parsedBonPlans[1]?.type || submission.tip2_category, address: getAddressText(parsedBonPlans[1], submission.tip2), description: parsedBonPlans[1]?.description || "" },
+    { type: parsedBonPlans[2]?.type || submission.tip3_category, address: getAddressText(parsedBonPlans[2], submission.tip3), description: parsedBonPlans[2]?.description || "" }
+  ].filter(bp => bp.address || bp.description);
 
   // Récupérer la configuration personnalisée (Maintenant depuis Supabase)
   const config = await fetchTemplateConfig();
@@ -108,21 +114,24 @@ export async function generateBoardingPassPDF(submission: Submission): Promise<v
       <!-- Bon Plan 1 -->
       ${bonPlans[0] && blocks.bonPlan1 ? `
         <div style="position: absolute; left: ${blocks.bonPlan1.left}px; top: ${blocks.bonPlan1.top}px; font-size: ${blocks.bonPlan1.fontSize}px; font-weight: ${blocks.bonPlan1.fontWeight}; color: ${blocks.bonPlan1.color}; max-width: 200px; line-height: 1.2;">
-          ${bonPlans[0].address || bonPlans[0].type || 'Bon Plan 1'}
+          <div style="font-weight: bold; margin-bottom: 2px;">${bonPlans[0].address || bonPlans[0].type || 'Bon Plan 1'}</div>
+          ${bonPlans[0].description ? `<div style="font-size: ${Math.max(10, (blocks.bonPlan1.fontSize || 16) - 4)}px; font-weight: normal; color: rgba(0,0,0,0.65); line-height: 1.3;">${bonPlans[0].description.length > 80 ? bonPlans[0].description.slice(0, 80) + '...' : bonPlans[0].description}</div>` : ''}
         </div>
       ` : ''}
 
       <!-- Bon Plan 2 -->
       ${bonPlans[1] && blocks.bonPlan2 ? `
         <div style="position: absolute; left: ${blocks.bonPlan2.left}px; top: ${blocks.bonPlan2.top}px; font-size: ${blocks.bonPlan2.fontSize}px; font-weight: ${blocks.bonPlan2.fontWeight}; color: ${blocks.bonPlan2.color}; max-width: 200px; line-height: 1.2;">
-          ${bonPlans[1].address || bonPlans[1].type || 'Bon Plan 2'}
+          <div style="font-weight: bold; margin-bottom: 2px;">${bonPlans[1].address || bonPlans[1].type || 'Bon Plan 2'}</div>
+          ${bonPlans[1].description ? `<div style="font-size: ${Math.max(10, (blocks.bonPlan2.fontSize || 16) - 4)}px; font-weight: normal; color: rgba(0,0,0,0.65); line-height: 1.3;">${bonPlans[1].description.length > 80 ? bonPlans[1].description.slice(0, 80) + '...' : bonPlans[1].description}</div>` : ''}
         </div>
       ` : ''}
 
       <!-- Bon Plan 3 -->
       ${bonPlans[2] && blocks.bonPlan3 ? `
         <div style="position: absolute; left: ${blocks.bonPlan3.left}px; top: ${blocks.bonPlan3.top}px; font-size: ${blocks.bonPlan3.fontSize}px; font-weight: ${blocks.bonPlan3.fontWeight}; color: ${blocks.bonPlan3.color}; max-width: 200px; line-height: 1.2;">
-          ${bonPlans[2].address || bonPlans[2].type || 'Bon Plan 3'}
+          <div style="font-weight: bold; margin-bottom: 2px;">${bonPlans[2].address || bonPlans[2].type || 'Bon Plan 3'}</div>
+          ${bonPlans[2].description ? `<div style="font-size: ${Math.max(10, (blocks.bonPlan3.fontSize || 16) - 4)}px; font-weight: normal; color: rgba(0,0,0,0.65); line-height: 1.3;">${bonPlans[2].description.length > 80 ? bonPlans[2].description.slice(0, 80) + '...' : bonPlans[2].description}</div>` : ''}
         </div>
       ` : ''}
 

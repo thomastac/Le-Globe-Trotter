@@ -32,7 +32,7 @@ function StoryStepInner() {
   const id = params.get("id");
 
   const [anecdote, setAnecdote] = useState("");
-  const [plans, setPlans] = useState<Array<{ address: string; type?: string; categories?: string[]; description: string; latitude?: string; longitude?: string }>>([]);
+  const [plans, setPlans] = useState<Array<{ address: string; type?: string; categories?: string[]; description: string; latitude?: string; longitude?: string; locatorType?: 'address' | 'map' }>>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const addressRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -109,12 +109,13 @@ function StoryStepInner() {
               : (p.type ? [mapCategory(p.type)!] : []),
             latitude: p.latitude || "",
             longitude: p.longitude || "",
+            locatorType: (p.latitude && !p.address) ? 'map' : 'address'
           }));
           setPlans(normalized.slice(0, 3));
         } else {
           // Initialize based on stages
           const stageCount = [s.stage1, s.stage2, s.stage3].filter(Boolean).length || 1;
-          const defaultPlans = Array(stageCount).fill({ address: "", description: "", categories: [], type: "", latitude: "", longitude: "" });
+          const defaultPlans = Array(stageCount).fill(null).map(() => ({ address: "", description: "", categories: [], type: "", latitude: "", longitude: "", locatorType: 'address' as const }));
           setPlans(defaultPlans);
         }
       } catch (e: any) {
@@ -194,32 +195,49 @@ function StoryStepInner() {
                 >
                   <div className="grid-2">
                     <label className="label">
-                      Adresse du bon plan (optionnel)
-                      <div className="flex" style={{ gap: 8 }}>
+                      Localisation du bon plan (Optionnel)
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ flex: 1, padding: '8px', fontSize: '14px', background: p.locatorType === 'map' ? '#fff' : '#0f172a', color: p.locatorType === 'map' ? '#0f172a' : '#fff', border: '1px solid #cbd5e1' }}
+                          onClick={() => setPlans(arr => arr.map((it, i) => i === idx ? { ...it, locatorType: 'address', latitude: '', longitude: '' } : it))}
+                        >
+                          Adresse / Nom
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ flex: 1, padding: '8px', fontSize: '14px', background: p.locatorType === 'map' ? '#0f172a' : '#fff', color: p.locatorType === 'map' ? '#fff' : '#0f172a', border: '1px solid #cbd5e1' }}
+                          onClick={() => {
+                            setPlans(arr => arr.map((it, i) => i === idx ? { ...it, locatorType: 'map', address: '' } : it));
+                            setActiveMapPlanIndex(idx);
+                            setIsMapModalOpen(true);
+                          }}
+                        >
+                          Point GPS
+                        </button>
+                      </div>
+
+                      {p.locatorType !== 'map' ? (
                         <input
                           className="input pill-input white-border"
-                          style={{ flex: 1 }}
+                          style={{ width: '100%' }}
                           value={p.address}
                           onChange={(e) => setPlans((arr) => arr.map((it, i) => i === idx ? { ...it, address: e.target.value } : it))}
                           ref={(el) => { addressRefs.current[idx] = el; }}
                           placeholder="ex: 12 Rue de la Paix, Paris"
                         />
-                        <button
-                          type="button"
-                          className="btn"
-                          style={{ background: '#eaf3fb', color: '#0f172a', borderColor: '#cfe9f3', borderRadius: '50%', padding: '0', width: '42px', height: '42px', display: 'grid', placeItems: 'center', flexShrink: 0 }}
-                          title="Saisir un point précis sur la carte"
-                          onClick={() => {
-                            setActiveMapPlanIndex(idx);
-                            setIsMapModalOpen(true);
-                          }}
-                        >
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
-                        </button>
-                      </div>
-                      {(p.latitude && p.longitude) ? (
-                        <div style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>✓ Coordonnées GPS précises enregistrées</div>
-                      ) : null}
+                      ) : (
+                        <div style={{ padding: '12px', background: '#eaf3fb', borderRadius: '12px', textAlign: 'center', cursor: 'pointer', border: '1px dashed #93c5fd' }}
+                             onClick={() => { setActiveMapPlanIndex(idx); setIsMapModalOpen(true); }}>
+                          {p.latitude && p.longitude ? (
+                            <span style={{ color: '#10b981', fontWeight: 600 }}>✓ Position enregistrée ({parseFloat(p.latitude).toFixed(3)}, {parseFloat(p.longitude).toFixed(3)})<br/><span style={{fontSize: 12, fontWeight: 'normal', color: '#64748b'}}>Cliquez pour modifier</span></span>
+                          ) : (
+                            <span style={{ color: '#0ea5e9', fontWeight: 600 }}>📍 Cliquer ici pour placer le point sur la carte</span>
+                          )}
+                        </div>
+                      )}
                     </label>
                     <label className="label">
                       Catégorie
