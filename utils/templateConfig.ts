@@ -167,42 +167,6 @@ async function compressImage(dataUrl: string, maxWidth = 1200, quality = 0.7): P
 }
 
 /**
- * Sauvegarde la configuration dans localStorage
- */
-export async function saveTemplateConfig(config: TemplateConfig): Promise<void> {
-    if (typeof window === 'undefined') {
-        console.warn('Cannot save config: window is undefined');
-        return;
-    }
-
-    try {
-        const configToSave = { ...config };
-
-        // Compresser l'image de fond si elle est trop volumineuse (base64)
-        if (configToSave.backgroundImage && configToSave.backgroundImage.length > 500000) {
-            console.log('Compressing background image before saving...');
-            configToSave.backgroundImage = await compressImage(configToSave.backgroundImage, 1200, 0.6);
-        }
-
-        const configString = JSON.stringify(configToSave);
-        console.log('Saving config to localStorage:', configString.substring(0, 100) + '...');
-        localStorage.setItem('boarding_pass_config', configString);
-        console.log('Config saved successfully to localStorage');
-
-        // Vérifier que la sauvegarde a bien fonctionné
-        const saved = localStorage.getItem('boarding_pass_config');
-        if (saved) {
-            console.log('Verification: Config retrieved from localStorage');
-        } else {
-            console.error('Verification failed: Config not found in localStorage');
-        }
-    } catch (error) {
-        console.error('Error saving template config:', error);
-        throw error; // Propager l'erreur pour l'afficher à l'utilisateur
-    }
-}
-
-/**
  * Retourne la configuration par défaut
  */
 export function getDefaultConfig(): TemplateConfig {
@@ -210,13 +174,84 @@ export function getDefaultConfig(): TemplateConfig {
 }
 
 /**
+ * Récupère la configuration (depuis localStorage ou API)
+ */
+export async function fetchTemplateConfig(): Promise<TemplateConfig> {
+    if (typeof window === 'undefined') {
+        return DEFAULT_CONFIG; // Sur le serveur strict
+    }
+    
+    try {
+        const res = await fetch(`/api/template-config?t=${Date.now()}`);
+        if (res.ok) {
+            const data = await res.json();
+            return {
+                ...DEFAULT_CONFIG,
+                ...data,
+                blocks: {
+                    ...DEFAULT_CONFIG.blocks,
+                    ...(data.blocks || {})
+                }
+            };
+        }
+    } catch (e) {
+        console.warn('Network template config fetch failed, falling back to local');
+    }
+    
+    // Fallback local storage
+    return getTemplateConfig();
+}
+
+/**
+ * Sauvegarde la configuration dans Supabase !
+ */
+export async function saveTemplateConfig(config: TemplateConfig): Promise<void> {
+    if (typeof window === 'undefined') return;
+
+    try {
+        const configToSave = { ...config };
+
+        // Compresser l'image de fond si elle est trop volumineuse (base64)
+        if (configToSave.backgroundImage && configToSave.backgroundImage.startsWith('data:') && configToSave.backgroundImage.length > 500000) {
+            console.log('Compressing background image before saving...');
+            configToSave.backgroundImage = await compressImage(configToSave.backgroundImage, 1200, 0.6);
+        }
+        
+        // 1. Sauvegarder en local pour réponse rapide Admin
+        const configString = JSON.stringify(configToSave);
+        localStorage.setItem('boarding_pass_config', configString);
+        
+        // 2. Sauvegarder pour tous les utilisateurs sur Supabase
+        const res = await fetch('/api/admin/template-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: configString
+        });
+        
+        if (!res.ok) {
+            const d = await res.json();
+            throw new Error(d.error || 'Erreur API upload config');
+        }
+
+    } catch (error) {
+        console.error('Error saving template config:', error);
+        throw error;
+    }
+}
+
+/**
  * Reset vers la configuration par défaut
  */
-export function resetTemplateConfig(): void {
+export async function resetTemplateConfig(): Promise<void> {
     if (typeof window === 'undefined') return;
 
     try {
         localStorage.removeItem('boarding_pass_config');
+        await fetch('/api/admin/template-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(DEFAULT_CONFIG)
+        });
     } catch (error) {
         console.error('Error resetting template config:', error);
     }

@@ -6,13 +6,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import Image from 'next/image';
 import { generateBoardingPassImage, saveBoardingPassCard } from '../../../utils/generateBoardingPassImage';
+import { generateBoardingPassPDF } from '../../../utils/generateBoardingPassPDF';
 
 function SubmitPreviewPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const id = params.get('id');
 
-  const pdfUrl = useMemo(() => (id ? `/api/pdf?id=${encodeURIComponent(String(id))}` : ''), [id]);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [imgUrlLarge, setImgUrlLarge] = useState<string | null>(null);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -22,6 +22,8 @@ function SubmitPreviewPageContent() {
   const [headerH, setHeaderH] = useState<number>(0);
   const [generatingCard, setGeneratingCard] = useState(false);
   const [cardGenerated, setCardGenerated] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [submissionData, setSubmissionData] = useState<any>(null);
 
   // Lock body scroll on this page (mobile & desktop)
   useEffect(() => {
@@ -29,7 +31,6 @@ function SubmitPreviewPageContent() {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, []);
-
 
   // Measure header/footer height to size the preview area
   useEffect(() => {
@@ -48,8 +49,9 @@ function SubmitPreviewPageContent() {
   useEffect(() => {
     if (!id || !cardGenerated) return;
 
-    // Use the generated boarding pass image instead of PDF
-    const imageUrl = `/cartes/${id}.png`;
+    // Use the generated boarding pass image from Supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const imageUrl = `${supabaseUrl}/storage/v1/object/public/cartes/${id}.png`;
 
     // Add cache buster to ensure we get the latest version
     const timestamp = Date.now();
@@ -60,21 +62,16 @@ function SubmitPreviewPageContent() {
   }, [id, cardGenerated]);
 
   const handleDownload = useCallback(async () => {
-    if (!id) return;
+    if (!id || !submissionData) return;
+    setIsDownloading(true);
     try {
-      const res = await fetch(`/api/pdf?id=${encodeURIComponent(String(id))}`);
-      if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `globetrotter_${id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch { }
-  }, [id]);
+      await generateBoardingPassPDF(submissionData);
+    } catch (e: any) { 
+      console.error('Error generating PDF', e);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [id, submissionData]);
 
   const handleNew = useCallback(() => {
     try { localStorage.removeItem('submit_step1_draft_v1'); } catch { }
@@ -103,6 +100,8 @@ function SubmitPreviewPageContent() {
         const json = await res.json();
         const submission = json?.submission;
         if (!submission) throw new Error('No submission data');
+
+        setSubmissionData(submission);
 
         // Generate boarding pass image
         const blob = await generateBoardingPassImage(submission);
@@ -218,8 +217,17 @@ function SubmitPreviewPageContent() {
           zIndex: 30,
         }}
       >
-        <button className="checkin-btn ready" onClick={handleDownload} style={{ cursor: 'pointer' }}>
-          <span className="checkin-inner">Télécharger le PDF</span>
+        <button className="checkin-btn ready" onClick={handleDownload} style={{ cursor: 'pointer' }} disabled={isDownloading}>
+          {isDownloading ? (
+            <span className="checkin-inner">
+              <svg className="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true" style={{ animation: 'rotation 1s linear infinite' }}>
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              </svg>
+              Téléchargement...
+            </span>
+          ) : (
+            <span className="checkin-inner">Télécharger le PDF</span>
+          )}
         </button>
         <button className="checkin-btn" onClick={handleNew} style={{ cursor: 'pointer' }}>
           <span className="checkin-inner">Partager une nouvelle anecdote</span>

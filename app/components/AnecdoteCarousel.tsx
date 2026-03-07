@@ -67,7 +67,7 @@ export default function AnecdoteCarousel() {
       <BoardingPassModal
         isOpen={!!selectedId}
         onClose={() => setSelectedId(null)}
-        submissionId={selectedId}
+        submission={items.find(i => i.id === selectedId) || null}
       />
 
       <style jsx>{`

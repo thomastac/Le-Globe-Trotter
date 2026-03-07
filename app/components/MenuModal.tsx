@@ -83,8 +83,8 @@ export default function MenuModal({ isOpen, onClose }: { isOpen: boolean; onClos
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.85);
-          backdrop-filter: blur(10px);
+          background: rgba(15, 10, 8, 0.7);
+          backdrop-filter: blur(8px);
           z-index: 9999;
           display: flex;
           justify-content: center;
@@ -94,13 +94,13 @@ export default function MenuModal({ isOpen, onClose }: { isOpen: boolean; onClos
         }
 
         .menu-modal-content {
-          background: #111827;
+          background: #faf8f3;
           width: 100%;
           max-width: 1000px;
           height: 90vh;
           border-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          border: 1px solid #ede4d7;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
           display: flex;
           flex-direction: column;
           position: relative;
@@ -112,9 +112,9 @@ export default function MenuModal({ isOpen, onClose }: { isOpen: boolean; onClos
           position: absolute;
           top: 20px;
           right: 20px;
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(0, 0, 0, 0.05);
           border: none;
-          color: #fff;
+          color: #1c1917;
           width: 40px;
           height: 40px;
           border-radius: 50%;
@@ -128,25 +128,25 @@ export default function MenuModal({ isOpen, onClose }: { isOpen: boolean; onClos
         }
 
         .close-btn:hover {
-          background: rgba(255, 255, 255, 0.2);
+          background: rgba(0, 0, 0, 0.1);
           transform: rotate(90deg);
         }
 
         .modal-header {
           padding: 30px;
           text-align: center;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-          background: #1f2937;
+          border-bottom: 1px solid #ede4d7;
+          background: #faf8f3;
         }
 
         .modal-header h2 {
           font-size: 2.5rem;
-          color: #f6b17a;
+          color: #CE425B;
           margin: 0 0 8px 0;
         }
 
         .modal-header p {
-          color: #9ca3af;
+          color: #78716c;
           margin: 0;
         }
 
@@ -200,14 +200,14 @@ export default function MenuModal({ isOpen, onClose }: { isOpen: boolean; onClos
           width: 8px;
         }
         .menu-gallery::-webkit-scrollbar-track {
-          background: #111827;
+          background: transparent;
         }
         .menu-gallery::-webkit-scrollbar-thumb {
-          background: #374151;
+          background: #D6C9B6;
           border-radius: 4px;
         }
         .menu-gallery::-webkit-scrollbar-thumb:hover {
-          background: #4b5563;
+          background: #c5b49d;
         }
       `}</style>
     </div>,

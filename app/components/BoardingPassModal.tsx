@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Submission } from '../../lib/fetchSubmissions';
 
 interface BoardingPassModalProps {
   isOpen: boolean;
   onClose: () => void;
-  submissionId: string | null;
+  submission: Submission | null;
 }
 
-export default function BoardingPassModal({ isOpen, onClose, submissionId }: BoardingPassModalProps) {
+export default function BoardingPassModal({ isOpen, onClose, submission }: BoardingPassModalProps) {
   const [mounted, setMounted] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [localBlobUrl, setLocalBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -28,12 +31,43 @@ export default function BoardingPassModal({ isOpen, onClose, submissionId }: Boa
   useEffect(() => {
     if (isOpen) {
       setImageError(false);
+      setIsGenerating(false);
+      if (localBlobUrl) {
+        URL.revokeObjectURL(localBlobUrl);
+        setLocalBlobUrl(null);
+      }
     }
-  }, [isOpen, submissionId]);
+  }, [isOpen, submission]);
 
-  if (!mounted || !isOpen || !submissionId) return null;
+  if (!mounted || !isOpen || !submission) return null;
 
-  const imageUrl = `/cartes/${submissionId}.png`;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const defaultImageUrl = `${supabaseUrl}/storage/v1/object/public/cartes/${submission.id}.png`;
+  const displayUrl = localBlobUrl || defaultImageUrl;
+
+  const handleImageError = async () => {
+    if (imageError || localBlobUrl || isGenerating) return;
+    setImageError(true);
+    setIsGenerating(true);
+
+    try {
+      const { generateBoardingPassImage, saveBoardingPassCard } = await import('../../utils/generateBoardingPassImage');
+      // Generate dynamically client-side
+      const blob = await generateBoardingPassImage(submission as any);
+      
+      // We set a local URL instantly so the user sees it without waiting for upload
+      const objectUrl = URL.createObjectURL(blob);
+      setLocalBlobUrl(objectUrl);
+      setImageError(false);
+
+      // Save to Supabase in background (Sliding Window API)
+      await saveBoardingPassCard(submission.id, blob);
+    } catch (err) {
+      console.error("Failed to regenerate boarding pass:", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return createPortal(
     <div className="carnet-modal-overlay" onClick={onClose}>
@@ -41,26 +75,32 @@ export default function BoardingPassModal({ isOpen, onClose, submissionId }: Boa
         <button className="close-btn" onClick={onClose}>&times;</button>
 
         <div className="image-container">
-          {imageError ? (
+          {isGenerating ? (
+            <div className="loader-container">
+              <div className="spinner"></div>
+              <h3>Génération de votre carnet...</h3>
+              <p>Juste un instant, nous préparons l'aperçu dynamique géographique.</p>
+            </div>
+          ) : imageError && !isGenerating && !localBlobUrl ? (
             <div className="error-message">
               <div className="error-icon">📋</div>
               <h3>Carte non générée</h3>
-              <p>Cette carte d'embarcation n'a pas encore été créée.</p>
-              <p className="hint">Les cartes sont générées depuis l'espace admin.</p>
+              <p>Impossible de créer cette carte dynamiquement.</p>
             </div>
           ) : (
-            <img
-              src={imageUrl}
-              alt="Carte d'embarcation"
-              onError={() => setImageError(true)}
-              style={{
-                width: 'auto',
-                height: 'auto',
-                maxWidth: '100%',
-                maxHeight: 'calc(90vh - 40px)',
-                objectFit: 'contain',
-              }}
-            />
+              <img
+                src={displayUrl}
+                alt="Carte d'embarcation"
+                onError={handleImageError}
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  maxHeight: 'calc(90vh - 100px)',
+                  objectFit: 'contain',
+                  opacity: isGenerating ? 0 : 1,
+                  transition: 'opacity 0.3s ease'
+                }}
+              />
           )}
         </div>
       </div>
@@ -86,6 +126,7 @@ export default function BoardingPassModal({ isOpen, onClose, submissionId }: Boa
           background: #f5f5f4;
           width: 100%;
           max-width: 600px;
+          min-height: 400px;
           max-height: 90vh;
           border-radius: 16px;
           border: 2px solid rgba(255, 255, 255, 0.15);
@@ -106,7 +147,7 @@ export default function BoardingPassModal({ isOpen, onClose, submissionId }: Boa
           color: #fff;
           width: 40px;
           height: 40px;
-          border-radius: 50%  ;
+          border-radius: 50%;
           font-size: 28px;
           line-height: 1;
           cursor: pointer;
@@ -126,17 +167,53 @@ export default function BoardingPassModal({ isOpen, onClose, submissionId }: Boa
             flex: 1;
             width: 100%;
             height: 100%;
-            background: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            background: #fff;
+        }
+
+        .loader-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          color: #57534e;
+          text-align: center;
+        }
+
+        .spinner {
+          width: 48px;
+          height: 48px;
+          border: 5px solid #E8E0D0;
+          border-bottom-color: #CE425B;
+          border-radius: 50%;
+          animation: rotation 1s linear infinite;
+          margin-bottom: 24px;
+        }
+
+        @keyframes rotation {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .loader-container h3 {
+          font-size: 22px;
+          font-weight: 700;
+          color: #292524;
+          margin-bottom: 8px;
+        }
+
+        .loader-container p {
+          font-size: 15px;
+          color: #78716c;
+          max-width: 280px;
+          line-height: 1.5;
         }
 
         .error-message {
           text-align: center;
           color: #57534e;
-          padding: 40px 20px;
         }
 
         .error-icon {
@@ -149,18 +226,6 @@ export default function BoardingPassModal({ isOpen, onClose, submissionId }: Boa
           font-weight: bold;
           margin-bottom: 12px;
           color: #292524;
-        }
-
-        .error-message p {
-          font-size: 16px;
-          margin-bottom: 8px;
-          line-height: 1.5;
-        }
-
-        .error-message .hint {
-          font-size: 14px;
-          opacity: 0.7;
-          font-style: italic;
         }
 
         @keyframes fadeIn {

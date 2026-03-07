@@ -275,7 +275,16 @@ function StoryStepInner() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
               <button className="checkin-btn ready" type="submit" disabled={loading}>
-                <span className="checkin-inner">Continuer</span>
+                {loading ? (
+                  <span className="checkin-inner">
+                    <svg className="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true" style={{ animation: 'rotation 1s linear infinite' }}>
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                    Enregistrement...
+                  </span>
+                ) : (
+                  <span className="checkin-inner">Continuer</span>
+                )}
               </button>
             </div>
             {msg && <div style={{ marginTop: 8, color: 'crimson' }}>{msg}</div>}

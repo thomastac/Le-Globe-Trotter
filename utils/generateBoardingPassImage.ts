@@ -1,22 +1,22 @@
-import { getTemplateConfig } from './templateConfig';
+import { fetchTemplateConfig } from './templateConfig';
 
 interface Submission {
   id: string;
   display_name: string;
   country: string;
   city: string;
-  stage1?: string;
-  stage2?: string;
-  stage3?: string;
-  photo_url?: string;
-  anecdote_text?: string;
-  bon_plans?: Array<{
-    address?: string;
-    description?: string;
-    type?: string;
-    latitude?: number | string;
-    longitude?: number | string;
-  }>;
+  stage1?: string | null;
+  stage2?: string | null;
+  stage3?: string | null;
+  photo_url?: string | null;
+  anecdote_text?: string | null;
+  tip1?: string | null;
+  tip1_category?: string | null;
+  tip2?: string | null;
+  tip2_category?: string | null;
+  tip3?: string | null;
+  tip3_category?: string | null;
+  bon_plans?: any[];
 }
 
 export async function generateBoardingPassImage(submission: Submission): Promise<Blob> {
@@ -29,10 +29,16 @@ export async function generateBoardingPassImage(submission: Submission): Promise
   document.body.appendChild(container);
 
   const stops = [submission.stage1, submission.stage2, submission.stage3].filter(Boolean);
-  const bonPlans = submission.bon_plans?.slice(0, 3) || [];
+  
+  const parsedBonPlans = Array.isArray(submission.bon_plans) ? submission.bon_plans : [];
+  const bonPlans = [
+    { type: parsedBonPlans[0]?.type || submission.tip1_category, address: parsedBonPlans[0]?.address || submission.tip1 },
+    { type: parsedBonPlans[1]?.type || submission.tip2_category, address: parsedBonPlans[1]?.address || submission.tip2 },
+    { type: parsedBonPlans[2]?.type || submission.tip3_category, address: parsedBonPlans[2]?.address || submission.tip3 }
+  ].filter(bp => bp.address);
 
-  // Récupérer la configuration personnalisée
-  const config = getTemplateConfig();
+  // Récupérer la configuration personnalisée (Maintenant depuis Supabase)
+  const config = await fetchTemplateConfig();
   const { backgroundImage, blocks } = config;
 
   // UTILISATION DE LA CONFIGURATION PERSONNALISÉE
@@ -49,10 +55,10 @@ export async function generateBoardingPassImage(submission: Submission): Promise
       <!-- Photo -->
       <div style="
         position: absolute;
-        left: ${blocks.photo.left}px;
-        top: ${blocks.photo.top}px;
-        width: ${blocks.photo.width}px;
-        height: ${blocks.photo.height}px;
+        left: ${blocks.photo?.left ?? 587}px;
+        top: ${blocks.photo?.top ?? 60}px;
+        width: ${blocks.photo?.width ?? 590}px;
+        height: ${blocks.photo?.height ?? 663}px;
         overflow: hidden;
         background: #c8d8d0;
       ">
@@ -68,21 +74,21 @@ export async function generateBoardingPassImage(submission: Submission): Promise
       </div>
 
       <!-- Arrêt 1 -->
-      ${stops[0] ? `
+      ${stops[0] && blocks.stop1 ? `
         <div style="position: absolute; left: ${blocks.stop1.left}px; top: ${blocks.stop1.top}px; font-size: ${blocks.stop1.fontSize}px; font-weight: ${blocks.stop1.fontWeight}; color: ${blocks.stop1.color}; max-width: 200px; line-height: 1.2;">
           ${stops[0]}
         </div>
       ` : ''}
 
       <!-- Arrêt 2 -->
-      ${stops[1] ? `
+      ${stops[1] && blocks.stop2 ? `
         <div style="position: absolute; left: ${blocks.stop2.left}px; top: ${blocks.stop2.top}px; font-size: ${blocks.stop2.fontSize}px; font-weight: ${blocks.stop2.fontWeight}; color: ${blocks.stop2.color}; max-width: 200px; line-height: 1.2;">
           ${stops[1]}
         </div>
       ` : ''}
 
       <!-- Arrêt 3 -->
-      ${stops[2] ? `
+      ${stops[2] && blocks.stop3 ? `
         <div style="position: absolute; left: ${blocks.stop3.left}px; top: ${blocks.stop3.top}px; font-size: ${blocks.stop3.fontSize}px; font-weight: ${blocks.stop3.fontWeight}; color: ${blocks.stop3.color}; max-width: 200px; line-height: 1.2;">
           ${stops[2]}
         </div>
@@ -91,46 +97,53 @@ export async function generateBoardingPassImage(submission: Submission): Promise
       <!-- Bon Plan 1 -->
       ${bonPlans[0] && blocks.bonPlan1 ? `
         <div style="position: absolute; left: ${blocks.bonPlan1.left}px; top: ${blocks.bonPlan1.top}px; font-size: ${blocks.bonPlan1.fontSize}px; font-weight: ${blocks.bonPlan1.fontWeight}; color: ${blocks.bonPlan1.color}; max-width: 200px; line-height: 1.2;">
-          ${bonPlans[0].address || bonPlans[0].type || (bonPlans[0].latitude && bonPlans[0].longitude ? `${Number(bonPlans[0].latitude).toFixed(4)}, ${Number(bonPlans[0].longitude).toFixed(4)}` : 'Bon Plan 1')}
+          ${bonPlans[0].address || bonPlans[0].type || 'Bon Plan 1'}
         </div>
       ` : ''}
 
       <!-- Bon Plan 2 -->
       ${bonPlans[1] && blocks.bonPlan2 ? `
         <div style="position: absolute; left: ${blocks.bonPlan2.left}px; top: ${blocks.bonPlan2.top}px; font-size: ${blocks.bonPlan2.fontSize}px; font-weight: ${blocks.bonPlan2.fontWeight}; color: ${blocks.bonPlan2.color}; max-width: 200px; line-height: 1.2;">
-          ${bonPlans[1].address || bonPlans[1].type || (bonPlans[1].latitude && bonPlans[1].longitude ? `${Number(bonPlans[1].latitude).toFixed(4)}, ${Number(bonPlans[1].longitude).toFixed(4)}` : 'Bon Plan 2')}
+          ${bonPlans[1].address || bonPlans[1].type || 'Bon Plan 2'}
         </div>
       ` : ''}
 
       <!-- Bon Plan 3 -->
       ${bonPlans[2] && blocks.bonPlan3 ? `
         <div style="position: absolute; left: ${blocks.bonPlan3.left}px; top: ${blocks.bonPlan3.top}px; font-size: ${blocks.bonPlan3.fontSize}px; font-weight: ${blocks.bonPlan3.fontWeight}; color: ${blocks.bonPlan3.color}; max-width: 200px; line-height: 1.2;">
-          ${bonPlans[2].address || bonPlans[2].type || (bonPlans[2].latitude && bonPlans[2].longitude ? `${Number(bonPlans[2].latitude).toFixed(4)}, ${Number(bonPlans[2].longitude).toFixed(4)}` : 'Bon Plan 3')}
+          ${bonPlans[2].address || bonPlans[2].type || 'Bon Plan 3'}
         </div>
       ` : ''}
 
       <!-- Nom -->
+      ${blocks.name ? `
       <div style="position: absolute; left: ${blocks.name.left}px; top: ${blocks.name.top}px; font-size: ${blocks.name.fontSize}px; font-weight: ${blocks.name.fontWeight}; color: ${blocks.name.color}; text-transform: uppercase; letter-spacing: 3px;">
         ${submission.display_name}
       </div>
+      ` : ''}
 
       <!-- Destination -->
+      ${blocks.destination ? `
       <div style="position: absolute; left: ${blocks.destination.left}px; top: ${blocks.destination.top}px; font-size: ${blocks.destination.fontSize}px; font-weight: ${blocks.destination.fontWeight}; color: ${blocks.destination.color};">
         ${submission.city}, ${submission.country}
       </div>
+      ` : ''}
 
       <!-- Anecdote -->
+      ${blocks.anecdote ? `
       <div style="position: absolute; left: ${blocks.anecdote.left}px; top: ${blocks.anecdote.top}px; width: ${blocks.anecdote.width}px; font-size: ${blocks.anecdote.fontSize}px; font-weight: ${blocks.anecdote.fontWeight}; line-height: 1.5; color: ${blocks.anecdote.color}; max-height: 150px; overflow: hidden;">
         ${submission.anecdote_text || ''}
       </div>
+      ` : ''}
     </div>
   `;
 
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await document.fonts.ready;
+  await new Promise((resolve) => setTimeout(resolve, 50));
 
   const html2canvas = (await import('html2canvas')).default;
   const canvas = await html2canvas(container, {
-    scale: 2,
+    scale: 1, // Rapid execution for previews
     useCORS: true,
     allowTaint: true,
     backgroundColor: '#ffffff',

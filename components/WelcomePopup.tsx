@@ -1,14 +1,21 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function WelcomePopup() {
     const [config, setConfig] = useState<any>(null);
     const [isVisible, setIsVisible] = useState(false);
-    const [isEntering, setIsEntering] = useState(true);
     const [isClosing, setIsClosing] = useState(false);
+    const pathname = usePathname();
 
     useEffect(() => {
+        // Le popup ne s'affiche que sur la page d'accueil
+        if (pathname !== '/') {
+            setIsVisible(false);
+            return;
+        }
+
         // Ne pas afficher si déjà vu pendant cette session
         if (sessionStorage.getItem('hasSeenPopup')) {
             return;
@@ -19,7 +26,11 @@ export default function WelcomePopup() {
                 const res = await fetch(`/api/popup-config?t=${Date.now()}`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.is_popup_enabled) {
+                    
+                    // Vérifier si un autre modal gèle déjà l'écran (ex: carte d'anecdote)
+                    const isAnotherModalOpen = document.body.style.overflow === 'hidden';
+
+                    if (data.is_popup_enabled && !isAnotherModalOpen) {
                         setConfig(data);
                         setIsVisible(true);
                     }
@@ -30,22 +41,14 @@ export default function WelcomePopup() {
         }
 
         fetchConfig();
-    }, []);
-
-    useEffect(() => {
-        if (isVisible) {
-            // Déclenche l'animation d'apparition après le premier rendu
-            const timer = setTimeout(() => setIsEntering(false), 50);
-            return () => clearTimeout(timer);
-        }
-    }, [isVisible]);
+    }, [pathname]);
 
     const handleClose = () => {
         setIsClosing(true);
         sessionStorage.setItem('hasSeenPopup', 'true');
         setTimeout(() => {
             setIsVisible(false);
-        }, 500); // On attend la fin de l'animation
+        }, 500); // On attend la fin de l'animation de fermeture
     };
 
     if (!isVisible || !config) return null;
@@ -60,7 +63,7 @@ export default function WelcomePopup() {
             justifyContent: 'center',
             background: 'rgba(0, 0, 0, 0.5)',
             backdropFilter: 'blur(4px)',
-            opacity: isClosing || isEntering ? 0 : 1,
+            opacity: isClosing ? 0 : 1,
             transition: 'opacity 0.4s ease'
         }}>
             <div style={{
@@ -71,9 +74,10 @@ export default function WelcomePopup() {
                 background: 'white',
                 borderRadius: '16px',
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                transform: isClosing ? 'scale(0.9) translateY(20px)' : (isEntering ? 'scale(0.9) translateY(20px)' : 'scale(1) translateY(0)'),
-                opacity: isClosing || isEntering ? 0 : 1,
-                transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
+                transform: isClosing ? 'scale(0.9) translateY(20px)' : 'scale(1) translateY(0)',
+                opacity: isClosing ? 0 : 1,
+                transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+                animation: 'scaleUpModal 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
             }}>
                 {/* Bouton Fermer */}
                 <button
