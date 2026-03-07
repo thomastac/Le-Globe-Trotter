@@ -2,3 +2,4 @@ node_modules
 .netlify
 .next
 .env.local
+public/cartes/*.png
